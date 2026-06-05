@@ -1,10 +1,34 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Edit, FileText, Gamepad2, Plus, Search, Trash2, Type } from 'lucide-react';
+import { Calendar, Clock3, Edit, FileText, Gamepad2, Plus, Search, Trash2, Type } from 'lucide-react';
 import { useJournal } from '../store/useJournalStore';
 import type { Game } from '../interfaces/models';
 
 const emptyGameForm = { title: '', description: '', coverImageUrl: '' };
+
+const getRelativeTime = (dateValue?: string) => {
+  if (!dateValue) return 'No notes yet';
+
+  const date = new Date(dateValue);
+  const diffMs = Date.now() - date.getTime();
+  if (Number.isNaN(diffMs)) return 'No notes yet';
+  if (diffMs < 60_000) return 'just now';
+
+  const units = [
+    { label: 'year', ms: 365 * 24 * 60 * 60 * 1000 },
+    { label: 'month', ms: 30 * 24 * 60 * 60 * 1000 },
+    { label: 'week', ms: 7 * 24 * 60 * 60 * 1000 },
+    { label: 'day', ms: 24 * 60 * 60 * 1000 },
+    { label: 'hour', ms: 60 * 60 * 1000 },
+    { label: 'minute', ms: 60 * 1000 }
+  ];
+
+  const unit = units.find((item) => diffMs >= item.ms);
+  if (!unit) return 'just now';
+
+  const value = Math.floor(diffMs / unit.ms);
+  return `${value} ${unit.label}${value > 1 ? 's' : ''} ago`;
+};
 
 export const Home = () => {
   const { games, addGame, updateGame, deleteGame } = useJournal();
@@ -18,6 +42,12 @@ export const Home = () => {
 
   const totalPlaythroughs = games.reduce((acc, game) => acc + game.playthroughs.length, 0);
   const totalNotes = games.reduce((acc, game) => acc + game.playthroughs.reduce((sum, play) => sum + play.notes.length, 0), 0);
+  const latestNoteDate = useMemo(() => {
+    const noteDates = games.flatMap((game) => game.playthroughs.flatMap((play) => play.notes.map((note) => note.date)));
+    const latestTime = noteDates.reduce((latest, date) => Math.max(latest, new Date(date).getTime()), 0);
+
+    return latestTime ? new Date(latestTime).toISOString() : undefined;
+  }, [games]);
 
   const sortedGames = useMemo(() => {
     const filteredGames = games.filter((game) => game.title.toLowerCase().includes(search.toLowerCase()));
@@ -75,7 +105,7 @@ export const Home = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:min-w-80">
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[26rem] sm:grid-cols-4">
             <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/55 p-3">
               <div className="text-xs text-[var(--text-secondary)]">Games</div>
               <div className="mt-1 text-2xl font-bold">{games.length}</div>
@@ -87,6 +117,12 @@ export const Home = () => {
             <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/55 p-3">
               <div className="text-xs text-[var(--text-secondary)]">Notes</div>
               <div className="mt-1 text-2xl font-bold">{totalNotes}</div>
+            </div>
+            <div className="rounded-lg border border-[var(--color-brand)]/30 bg-[var(--color-brand)]/10 p-3">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--color-brand)]">
+                <Clock3 size={13} /> Last note
+              </div>
+              <div className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{getRelativeTime(latestNoteDate)}</div>
             </div>
           </div>
         </div>
@@ -216,7 +252,10 @@ export const Home = () => {
                     <p className="mb-4 flex-1 text-sm leading-6 text-[var(--text-secondary)] line-clamp-3">{game.description || 'No description yet.'}</p>
                     <div className="flex items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3 text-xs text-[var(--text-secondary)]">
                       <span className="inline-flex items-center gap-1.5"><FileText size={14} />{game.playthroughs.length} Plays</span>
-                      <span>{game.lastNoteDate ? new Date(game.lastNoteDate).toLocaleDateString() : 'No notes'}</span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--bg-main)] px-2 py-1">
+                        <Clock3 size={13} />
+                        {getRelativeTime(game.lastNoteDate)}
+                      </span>
                     </div>
                   </div>
                 </Link>

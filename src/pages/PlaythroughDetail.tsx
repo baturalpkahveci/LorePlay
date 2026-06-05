@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Edit, FileText, Filter, Plus, Trash2, Upload } from 'lucide-react';
 import { MarkdownHelpPanel } from '../components/MarkdownHelpPanel';
-import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { useJournal } from '../store/useJournalStore';
 import { appColors } from '../theme/appColors';
 import type { Note } from '../interfaces/models';
@@ -20,12 +19,14 @@ export const PlaythroughDetail = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState('');
   const [color, setColor] = useState(appColors.noteColors[0]);
   const [tagsText, setTagsText] = useState('');
 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editCoverImageUrl, setEditCoverImageUrl] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editTagsText, setEditTagsText] = useState('');
 
@@ -70,6 +71,7 @@ export const PlaythroughDetail = () => {
     addNote(gameId, playthroughId, {
       title,
       description,
+      coverImageUrl,
       color,
       tags,
       date: new Date().toISOString()
@@ -77,6 +79,7 @@ export const PlaythroughDetail = () => {
 
     setTitle('');
     setDescription('');
+    setCoverImageUrl('');
     setColor(appColors.noteColors[0]);
     setTagsText('');
     setIsAdding(false);
@@ -86,6 +89,7 @@ export const PlaythroughDetail = () => {
     setEditingNoteId(note.id);
     setEditTitle(note.title);
     setEditDescription(note.description || '');
+    setEditCoverImageUrl(note.coverImageUrl || '');
     setEditColor(note.color);
     setEditTagsText(note.tags.join(', '));
   };
@@ -99,6 +103,7 @@ export const PlaythroughDetail = () => {
     updateNote(gameId, playthroughId, editingNoteId, {
       title: editTitle,
       description: editDescription,
+      coverImageUrl: editCoverImageUrl,
       color: editColor,
       tags
     });
@@ -137,6 +142,7 @@ export const PlaythroughDetail = () => {
             addNote(game.id, playthrough.id, {
               title: note.title,
               description: note.description || '',
+              coverImageUrl: note.coverImageUrl || '',
               color: note.color || appColors.noteColors[0],
               tags: note.tags || [],
               date: note.date || new Date().toISOString()
@@ -153,15 +159,15 @@ export const PlaythroughDetail = () => {
   };
 
   const renderColorPicker = (selectedColor: string, onPick: (value: string) => void) => (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-[var(--text-secondary)]">Color</span>
-      <div className="flex flex-wrap gap-1.5">
+    <div className="min-w-0">
+      <span className="mb-2 block text-sm text-[var(--text-secondary)]">Color</span>
+      <div className="grid grid-cols-8 gap-1.5">
         {appColors.noteColors.map((noteColor) => (
           <button
             key={noteColor}
             type="button"
             onClick={() => onPick(noteColor)}
-            className={`h-8 w-8 rounded-full border-2 transition ${selectedColor === noteColor ? 'border-white scale-110' : 'border-transparent'}`}
+            className={`h-8 w-8 rounded-full border-2 transition ${selectedColor === noteColor ? 'border-white scale-105' : 'border-transparent'}`}
             style={{ backgroundColor: noteColor }}
             aria-label={`Pick note color ${noteColor}`}
           />
@@ -254,11 +260,19 @@ export const PlaythroughDetail = () => {
             className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
           />
 
+          <input
+            type="url"
+            placeholder="Cover Image URL"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
+          />
+
           <div className="relative">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
-              <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
             </div>
+            <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
             <textarea
               placeholder="Your note..."
               value={description}
@@ -267,13 +281,13 @@ export const PlaythroughDetail = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <input
               type="text"
               placeholder="Tags (comma separated)"
               value={tagsText}
               onChange={(e) => setTagsText(e.target.value)}
-              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)] md:w-72"
+              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
             />
             {renderColorPicker(color, setColor)}
           </div>
@@ -284,42 +298,50 @@ export const PlaythroughDetail = () => {
         </form>
       )}
 
-      <div className="space-y-5">
+      <div>
         {filteredNotes.length === 0 ? (
           <div className="rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--bg-surface)]/50 py-12 text-center text-[var(--text-secondary)]">
             <FileText className="mx-auto mb-3 text-[var(--color-brand)]" size={40} />
             No notes found.
           </div>
         ) : (
-          filteredNotes.map((note) => (
-            <article key={note.id} className="relative rounded-lg border border-[var(--border-color)] border-l-[6px] bg-[var(--bg-surface)] p-5 shadow-sm transition hover:border-r-[var(--color-brand)] hover:shadow-lg hover:shadow-black/15" style={{ borderLeftColor: note.color }}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredNotes.map((note) => (
+            <article key={note.id} className="relative overflow-hidden rounded-lg border border-[var(--border-color)] border-l-[6px] bg-[var(--bg-surface)] shadow-sm transition hover:border-r-[var(--color-brand)] hover:shadow-lg hover:shadow-black/15" style={{ borderLeftColor: note.color }}>
               {editingNoteId === note.id ? (
-                <form onSubmit={handleUpdateNote} className="flex flex-col gap-4">
+                <form onSubmit={handleUpdateNote} className="flex flex-col gap-3 p-5">
                   <input
                     type="text"
                     required
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-base font-semibold outline-none transition focus:border-[var(--color-brand)]"
+                  />
+                  <input
+                    type="url"
+                    placeholder="Cover Image URL"
+                    value={editCoverImageUrl}
+                    onChange={(e) => setEditCoverImageUrl(e.target.value)}
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
                   />
                   <div className="relative">
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="mb-2 flex items-center justify-between gap-3">
                       <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
-                      <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
                     </div>
+                    <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="h-40 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 font-mono text-sm outline-none transition focus:border-[var(--color-brand)]"
+                      className="h-36 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 font-mono text-sm outline-none transition focus:border-[var(--color-brand)]"
                     />
                   </div>
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="grid gap-3">
                     <input
                       type="text"
                       placeholder="Tags (comma separated)"
                       value={editTagsText}
                       onChange={(e) => setEditTagsText(e.target.value)}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)] md:w-72"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
                     />
                     {renderColorPicker(editColor, setEditColor)}
                   </div>
@@ -330,46 +352,61 @@ export const PlaythroughDetail = () => {
                 </form>
               ) : (
                 <>
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                      <h4 className="text-xl font-bold" style={{ color: note.color }}>{note.title}</h4>
-                      <span className="text-xs text-[var(--text-secondary)]">{new Date(note.date).toLocaleString()}</span>
+                  <Link to={`/game/${game.id}/playthrough/${playthrough.id}/note/${note.id}`} className="block h-full">
+                    {note.coverImageUrl ? (
+                      <img src={note.coverImageUrl} alt={note.title} className="h-40 w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="flex h-28 w-full items-center justify-center bg-[linear-gradient(135deg,_rgba(56,189,248,0.14),_rgba(52,211,153,0.08))]">
+                        <FileText size={34} style={{ color: note.color }} />
+                      </div>
+                    )}
+
+                    <div className="flex min-h-56 flex-col p-5">
+                      <div className="mb-4 pr-16">
+                        <h4 className="text-xl font-bold line-clamp-2" style={{ color: note.color }}>{note.title}</h4>
+                        <span className="text-xs text-[var(--text-secondary)]">{new Date(note.date).toLocaleString()}</span>
+                      </div>
+
+                      <p className="flex-1 text-sm leading-6 text-[var(--text-secondary)] line-clamp-4">
+                        {note.description || 'No note content yet.'}
+                      </p>
+
+                      {note.tags.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-color)] pt-4">
+                          {note.tags.slice(0, 4).map((tag) => (
+                            <span key={tag} className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                              #{tag}
+                            </span>
+                          ))}
+                          {note.tags.length > 4 && (
+                            <span className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                              +{note.tags.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => startEditingNote(note)} className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-main)] hover:text-[var(--color-brand)]" aria-label={`Edit ${note.title}`}>
+                  </Link>
+
+                  <div className="absolute right-3 top-3 flex gap-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/90 p-1 shadow">
+                      <button onClick={() => startEditingNote(note)} className="rounded-md p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-hover)] hover:text-[var(--color-brand)]" aria-label={`Edit ${note.title}`}>
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => {
                           if (window.confirm('Delete note?')) deleteNote(game.id, playthrough.id, note.id);
                         }}
-                        className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-main)] hover:text-[var(--color-danger-custom)]"
+                        className="rounded-md p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-hover)] hover:text-[var(--color-danger-custom)]"
                         aria-label={`Delete ${note.title}`}
                       >
                         <Trash2 size={18} />
                       </button>
-                    </div>
                   </div>
-
-                  {note.description && (
-                    <div className="mb-4 text-[var(--text-primary)]">
-                      <MarkdownRenderer content={note.description} />
-                    </div>
-                  )}
-
-                  {note.tags.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-color)] pt-4">
-                      {note.tags.map((tag) => (
-                        <span key={tag} className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </>
               )}
             </article>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -2,6 +2,7 @@ export interface Note {
   id: string;
   title: string;
   description?: string;
+  coverImageUrl?: string;
   date: string;
   color: string;
   tags: string[];

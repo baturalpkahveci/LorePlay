@@ -13,41 +13,29 @@ export const MarkdownHelpPanel: React.FC<MarkdownHelpPanelProps> = ({
   size = 14
 }) => {
   return (
-    <div className="relative">
+    <div className="w-full">
       <button
         type="button"
         onClick={onToggle}
-        className="text-[var(--text-secondary)] hover:text-white flex items-center gap-1 text-sm bg-[var(--bg-main)] px-2 py-1 rounded"
+        className="mb-2 ml-auto flex items-center gap-1 rounded-md bg-[var(--bg-main)] px-2 py-1 text-xs text-[var(--text-secondary)] transition hover:text-white"
       >
         <HelpCircle size={size} /> Help
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 right-0 top-full mt-2 w-[min(420px,90vw)] mb-0 p-3 bg-[var(--bg-main)] border border-[var(--color-brand)]/50 rounded-lg text-sm text-[var(--text-secondary)] grid grid-cols-1 gap-2 shadow-lg">
-          <div className="flex flex-wrap gap-3">
-            <div>
-              <code>**bold**</code>
-            </div>
-            <div>
-              <code>*italic*</code>
-            </div>
-            <div>
-              <code>[link](https://...)</code>
-            </div>
+        <div className="mt-2 w-full rounded-lg border border-[var(--color-brand)]/40 bg-[var(--bg-main)] p-3 text-xs leading-5 text-[var(--text-secondary)] shadow-lg shadow-black/10">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-md bg-[var(--bg-surface)] px-2 py-1"><code>**bold**</code></div>
+            <div className="rounded-md bg-[var(--bg-surface)] px-2 py-1"><code>*italic*</code></div>
+            <div className="rounded-md bg-[var(--bg-surface)] px-2 py-1"><code>[text](url)</code></div>
+            <div className="rounded-md bg-[var(--bg-surface)] px-2 py-1"><code>![alt|320x180](url)</code></div>
           </div>
 
-          <div>
-            <code>![alt|300x200](url)</code>{' '}
-            <span className="text-[var(--text-secondary)]">Resized image</span>
-          </div>
-
-          <div className="pt-2 border-t border-[var(--border-color)] text-xs leading-relaxed">
-            <strong>Image URL:</strong> Tek satıra direkt resim URL’si yapıştır → otomatik olarak resim görünür.
-            (Örn: <code>https://.../img.jpg</code>)
+          <div className="mt-2 border-t border-[var(--border-color)] pt-2">
+            Paste a Steam screenshot or image URL on its own line to show it inline. Use <code>|widthxheight</code> in image alt text to size it.
           </div>
         </div>
       )}
     </div>
   );
 };
-

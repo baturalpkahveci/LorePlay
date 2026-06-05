@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-main: var(--bg-main);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-border-custom: var(--border-color);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-brand: var(--color-primary);
+  --color-brand-hover: var(--color-primary-hover);
+  --color-danger-custom: var(--color-danger);
+  --color-success-custom: var(--color-success);
+  --color-warning-custom: var(--color-warning);
+}
+
+body {
+  background-color: var(--bg-main, #121212);
+  color: var(--text-primary, #ffffff);
+}

@@ -1,21 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useJournal } from '../store/useJournalStore';
-import { ArrowLeft, Plus, Download, Upload, Trash2, Filter, Edit } from 'lucide-react';
-import { MarkdownRenderer } from '../components/MarkdownRenderer';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Download, Edit, FileText, Filter, Plus, Trash2, Upload } from 'lucide-react';
 import { MarkdownHelpPanel } from '../components/MarkdownHelpPanel';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
+import { useJournal } from '../store/useJournalStore';
 import { appColors } from '../theme/appColors';
+import type { Note } from '../interfaces/models';
+
+type ImportedNote = Partial<Omit<Note, 'id'>>;
 
 export const PlaythroughDetail = () => {
-  // Temporary: this file is kept as-is; actual UI uses PlaythroughDetail_fixed.tsx
-
   const { gameId, playthroughId } = useParams();
   const navigate = useNavigate();
-  const { games, addNote, updateNote, deleteNote, deletePlaythrough, exportPlaythroughData, importData } = useJournal();
-  
-  const game = games.find(g => g.id === gameId);
-  const playthrough = game?.playthroughs.find(p => p.id === playthroughId);
-  
+  const { games, addNote, updateNote, deleteNote, deletePlaythrough, exportPlaythroughData } = useJournal();
+
+  const game = games.find((g) => g.id === gameId);
+  const playthrough = game?.playthroughs.find((p) => p.id === playthroughId);
+
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -29,17 +30,43 @@ export const PlaythroughDetail = () => {
   const [editTagsText, setEditTagsText] = useState('');
 
   const [filterColor, setFilterColor] = useState<string | null>(null);
-  const [filterTag, setFilterTag] = useState<string>('');
+  const [filterTag, setFilterTag] = useState('');
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
-  if (!game || !playthrough) return <div className="text-center py-10">Playthrough not found</div>;
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    playthrough?.notes.forEach((note) => note.tags.forEach((tag) => tags.add(tag)));
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [playthrough?.notes]);
+
+  const filteredNotes = useMemo(() => {
+    if (!playthrough) return [];
+
+    return playthrough.notes.filter((note) => {
+      const matchColor = filterColor ? note.color === filterColor : true;
+      const matchTag = filterTag ? note.tags.includes(filterTag) : true;
+      return matchColor && matchTag;
+    });
+  }, [filterColor, filterTag, playthrough]);
+
+  if (!game || !playthrough) {
+    return (
+      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] p-10 text-center">
+        <FileText className="mx-auto mb-3 text-[var(--color-brand)]" size={40} />
+        <h2 className="text-xl font-semibold">Playthrough not found</h2>
+        <Link to="/" className="mt-4 inline-flex items-center gap-2 text-[var(--color-brand)] hover:underline">
+          <ArrowLeft size={16} /> Back to games
+        </Link>
+      </div>
+    );
+  }
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !gameId || !playthroughId) return;
-    
-    const tags = tagsText.split(',').map(t => t.trim()).filter(Boolean);
-    
+
+    const tags = tagsText.split(',').map((tag) => tag.trim()).filter(Boolean);
+
     addNote(gameId, playthroughId, {
       title,
       description,
@@ -47,7 +74,7 @@ export const PlaythroughDetail = () => {
       tags,
       date: new Date().toISOString()
     });
-    
+
     setTitle('');
     setDescription('');
     setColor(appColors.noteColors[0]);
@@ -55,7 +82,7 @@ export const PlaythroughDetail = () => {
     setIsAdding(false);
   };
 
-  const startEditingNote = (note: any) => {
+  const startEditingNote = (note: Note) => {
     setEditingNoteId(note.id);
     setEditTitle(note.title);
     setEditDescription(note.description || '');
@@ -67,8 +94,8 @@ export const PlaythroughDetail = () => {
     e.preventDefault();
     if (!editTitle.trim() || !gameId || !playthroughId || !editingNoteId) return;
 
-    const tags = editTagsText.split(',').map(t => t.trim()).filter(Boolean);
-    
+    const tags = editTagsText.split(',').map((tag) => tag.trim()).filter(Boolean);
+
     updateNote(gameId, playthroughId, editingNoteId, {
       title: editTitle,
       description: editDescription,
@@ -96,232 +123,234 @@ export const PlaythroughDetail = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Import requires merging Playthrough data back into the game - for simplicity we just read it and do a crude fix.
-  // The system requested just export/import for Notes, let's refine this easily:
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const file = e.target.files?.[0];
-     if (!file) return;
-     const reader = new FileReader();
-     reader.onload = (ev) => {
-        try {
-           const parsed = JSON.parse(ev.target?.result as string);
-           if (parsed.notes && Array.isArray(parsed.notes)) {
-              // Just add imported notes
-              parsed.notes.forEach((n: any) => {
-                 addNote(game.id, playthrough.id, {
-                   title: n.title,
-                   description: n.description,
-                   color: n.color,
-                   tags: n.tags,
-                   date: n.date
-                 });
-              });
-              alert('Notes imported successfully');
-           }
-        } catch (err) {
-           alert('Invalid JSON file');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as { notes?: ImportedNote[] };
+        if (parsed.notes && Array.isArray(parsed.notes)) {
+          parsed.notes.forEach((note) => {
+            if (!note.title) return;
+            addNote(game.id, playthrough.id, {
+              title: note.title,
+              description: note.description || '',
+              color: note.color || appColors.noteColors[0],
+              tags: note.tags || [],
+              date: note.date || new Date().toISOString()
+            });
+          });
+          alert('Notes imported successfully');
         }
-     };
-     reader.readAsText(file);
+      } catch (err) {
+        alert('Invalid JSON file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    playthrough.notes.forEach(n => n.tags.forEach(t => tags.add(t)));
-    return Array.from(tags);
-  }, [playthrough.notes]);
-
-  const filteredNotes = playthrough.notes.filter(n => {
-    let matchColor = filterColor ? n.color === filterColor : true;
-    let matchTag = filterTag ? n.tags.includes(filterTag) : true;
-    return matchColor && matchTag;
-  });
+  const renderColorPicker = (selectedColor: string, onPick: (value: string) => void) => (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-[var(--text-secondary)]">Color</span>
+      <div className="flex flex-wrap gap-1.5">
+        {appColors.noteColors.map((noteColor) => (
+          <button
+            key={noteColor}
+            type="button"
+            onClick={() => onPick(noteColor)}
+            className={`h-8 w-8 rounded-full border-2 transition ${selectedColor === noteColor ? 'border-white scale-110' : 'border-transparent'}`}
+            style={{ backgroundColor: noteColor }}
+            aria-label={`Pick note color ${noteColor}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <Link to={`/game/${game.id}`} className="inline-flex items-center gap-2 text-[var(--text-secondary)] hover:text-white transition">
+    <div className="space-y-7">
+      <Link to={`/game/${game.id}`} className="inline-flex items-center gap-2 text-[var(--text-secondary)] transition hover:text-white">
         <ArrowLeft size={16} /> Back to {game.title}
       </Link>
 
-      <div className="bg-[var(--bg-surface)] p-6 rounded-xl border border-[var(--border-color)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold mb-1">{playthrough.title}</h2>
-          <p className="text-[var(--text-secondary)]">{playthrough.description}</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-           <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface-hover)] rounded border border-[var(--border-color)] hover:text-white" title="Export Notes">
-             <Download size={16} />
-           </button>
-           <label className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface-hover)] rounded border border-[var(--border-color)] hover:text-white cursor-pointer" title="Import Notes">
-             <Upload size={16} />
-             <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-           </label>
-           <button onClick={handleDeletePlaythrough} className="flex items-center gap-2 px-3 py-2 bg-[var(--color-danger-custom)]/20 text-[var(--color-danger-custom)] rounded border border-[var(--color-danger-custom)] hover:opacity-80">
-             <Trash2 size={16} />
-           </button>
-        </div>
-      </div>
+      <section className="rounded-lg border border-[var(--border-color)] bg-[linear-gradient(135deg,_rgba(56,189,248,0.11),_rgba(24,28,35,0.96)_52%)] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-3xl">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--color-brand)]">{game.title}</p>
+            <h2 className="text-3xl font-bold tracking-tight">{playthrough.title}</h2>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{playthrough.description || 'No description yet.'}</p>
+            <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-secondary)]">
+              <span className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)]/55 px-3 py-1">{playthrough.status}</span>
+              <span className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)]/55 px-3 py-1">{playthrough.notes.length} Notes</span>
+              <span className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)]/55 px-3 py-1">Streak: {playthrough.longestStreak}</span>
+            </div>
+          </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)]">
-        <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto">
-          <Filter size={18} className="text-[var(--text-secondary)]" />
-          <select 
-            value={filterTag} onChange={e => setFilterTag(e.target.value)}
-            className="bg-[var(--bg-main)] border border-[var(--border-color)] p-1.5 rounded focus:outline-none focus:border-[var(--color-brand)] text-sm"
+          <div className="flex gap-2">
+            <button onClick={handleExport} className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface-hover)] p-2 transition hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]" title="Export Notes" aria-label="Export notes">
+              <Download size={17} />
+            </button>
+            <label className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface-hover)] p-2 transition hover:border-[var(--color-warning-custom)] hover:text-[var(--color-warning-custom)] cursor-pointer" title="Import Notes" aria-label="Import notes">
+              <Upload size={17} />
+              <input type="file" accept=".json" onChange={handleImport} className="hidden" />
+            </label>
+            <button onClick={handleDeletePlaythrough} className="rounded-lg border border-[var(--color-danger-custom)]/30 bg-[var(--color-danger-custom)]/10 p-2 text-[var(--color-danger-custom)] transition hover:bg-[var(--color-danger-custom)]/20" aria-label="Delete playthrough">
+              <Trash2 size={17} />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)]/80 p-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto">
+          <Filter size={18} className="shrink-0 text-[var(--text-secondary)]" />
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2 text-sm outline-none transition focus:border-[var(--color-brand)]"
           >
             <option value="">All Tags</option>
-            {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+            {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
           </select>
-          
+
           <div className="flex items-center gap-1">
-            <button 
+            <button
               onClick={() => setFilterColor(null)}
-              className={`w-6 h-6 rounded-full border-2 ${!filterColor ? 'border-white' : 'border-transparent'} flex items-center justify-center text-xs bg-[var(--bg-surface-hover)]`}
+              className={`h-8 min-w-10 rounded-full border px-2 text-xs ${!filterColor ? 'border-white text-white' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}
               title="All Colors"
-            >All</button>
-            {appColors.noteColors.map(c => (
-              <button 
-                key={c}
-                onClick={() => setFilterColor(c)}
-                className={`w-6 h-6 rounded-full border-2 ${filterColor === c ? 'border-white' : 'border-transparent'}`}
-                style={{ backgroundColor: c }}
+            >
+              All
+            </button>
+            {appColors.noteColors.map((noteColor) => (
+              <button
+                key={noteColor}
+                onClick={() => setFilterColor(noteColor)}
+                className={`h-8 w-8 shrink-0 rounded-full border-2 ${filterColor === noteColor ? 'border-white' : 'border-transparent'}`}
+                style={{ backgroundColor: noteColor }}
+                aria-label={`Filter by color ${noteColor}`}
               />
             ))}
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setIsAdding(!isAdding)}
-          className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white px-4 py-2 rounded-lg flex items-center gap-2 w-full md:w-auto justify-center transition"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)] md:w-auto"
         >
           <Plus size={18} /> Add Note
         </button>
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddNote} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] flex flex-col gap-4">
-          <input 
-            type="text" placeholder="Note Title*" required
-            value={title} onChange={e => setTitle(e.target.value)}
-            className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] text-lg font-semibold"
+        <form onSubmit={handleAddNote} className="flex flex-col gap-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] p-4">
+          <input
+            type="text"
+            placeholder="Note Title*"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
           />
 
           <div className="relative">
-            <div className="flex justify-between items-center mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
-              <MarkdownHelpPanel
-                isOpen={showMarkdownHelp}
-                onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)}
-              />
+              <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
             </div>
-
-            <textarea 
+            <textarea
               placeholder="Your note..."
-              value={description} onChange={e => setDescription(e.target.value)}
-              className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] font-mono text-sm h-40 w-full"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="h-40 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 font-mono text-sm outline-none transition focus:border-[var(--color-brand)]"
             />
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <input 
-              type="text" placeholder="Tags (comma separated)" 
-              value={tagsText} onChange={e => setTagsText(e.target.value)}
-              className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] w-full md:w-64"
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <input
+              type="text"
+              placeholder="Tags (comma separated)"
+              value={tagsText}
+              onChange={(e) => setTagsText(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)] md:w-72"
             />
-            <div className="flex items-center gap-2">
-              <span className="text-[var(--text-secondary)] text-sm">Color:</span>
-              {appColors.noteColors.map(c => (
-                <button 
-                  key={c} type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-white scale-110' : 'border-transparent'} transition`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+            {renderColorPicker(color, setColor)}
           </div>
-          <div className="flex justify-end gap-2 mt-2">
-            <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded text-[var(--text-secondary)] hover:text-white">Cancel</button>
-            <button type="submit" className="bg-[var(--color-brand)] text-white px-4 py-2 rounded hover:opacity-90">Save Note</button>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setIsAdding(false)} className="rounded-lg px-4 py-2 text-[var(--text-secondary)] transition hover:text-white">Cancel</button>
+            <button type="submit" className="rounded-lg bg-[var(--color-brand)] px-4 py-2 font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)]">Save Note</button>
           </div>
         </form>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-5">
         {filteredNotes.length === 0 ? (
-          <div className="text-center text-[var(--text-secondary)] py-8">No notes found.</div>
+          <div className="rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--bg-surface)]/50 py-12 text-center text-[var(--text-secondary)]">
+            <FileText className="mx-auto mb-3 text-[var(--color-brand)]" size={40} />
+            No notes found.
+          </div>
         ) : (
           filteredNotes.map((note) => (
-            <div key={note.id} className="relative bg-[var(--bg-surface)] p-6 rounded-xl border-l-[6px] shadow-sm transform transition duration-300 hover:shadow-md" style={{ borderLeftColor: note.color }}>
+            <article key={note.id} className="relative rounded-lg border border-[var(--border-color)] border-l-[6px] bg-[var(--bg-surface)] p-5 shadow-sm transition hover:border-r-[var(--color-brand)] hover:shadow-lg hover:shadow-black/15" style={{ borderLeftColor: note.color }}>
               {editingNoteId === note.id ? (
                 <form onSubmit={handleUpdateNote} className="flex flex-col gap-4">
-                  <input 
-                    type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                    className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] text-lg font-semibold"
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
                   />
                   <div className="relative">
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
-                      <MarkdownHelpPanel
-                        isOpen={showMarkdownHelp}
-                        onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)}
-                      />
+                      <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
                     </div>
-
-
-
-                    <textarea 
-                      value={editDescription} onChange={e => setEditDescription(e.target.value)}
-                      className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] font-mono text-sm h-40 w-full"
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="h-40 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 font-mono text-sm outline-none transition focus:border-[var(--color-brand)]"
                     />
                   </div>
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    <input 
-                      type="text" placeholder="Tags (comma separated)" 
-                      value={editTagsText} onChange={e => setEditTagsText(e.target.value)}
-                      className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] w-full md:w-64"
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <input
+                      type="text"
+                      placeholder="Tags (comma separated)"
+                      value={editTagsText}
+                      onChange={(e) => setEditTagsText(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)] md:w-72"
                     />
-                    <div className="flex items-center gap-2">
-                      <span className="text-[var(--text-secondary)] text-sm">Color:</span>
-                      {appColors.noteColors.map(c => (
-                        <button 
-                          key={c} type="button"
-                          onClick={() => setEditColor(c)}
-                          className={`w-8 h-8 rounded-full border-2 ${editColor === c ? 'border-white scale-110' : 'border-transparent'} transition`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
-                    </div>
+                    {renderColorPicker(editColor, setEditColor)}
                   </div>
-                  <div className="flex justify-end gap-2 mt-2">
-                    <button type="button" onClick={() => setEditingNoteId(null)} className="px-4 py-2 rounded text-[var(--text-secondary)] hover:text-white">Cancel</button>
-                    <button type="submit" className="bg-[var(--color-brand)] text-white px-4 py-2 rounded hover:opacity-90">Update Note</button>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditingNoteId(null)} className="rounded-lg px-4 py-2 text-[var(--text-secondary)] transition hover:text-white">Cancel</button>
+                    <button type="submit" className="rounded-lg bg-[var(--color-brand)] px-4 py-2 font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)]">Update Note</button>
                   </div>
                 </form>
               ) : (
                 <>
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
                       <h4 className="text-xl font-bold" style={{ color: note.color }}>{note.title}</h4>
                       <span className="text-xs text-[var(--text-secondary)]">{new Date(note.date).toLocaleString()}</span>
                     </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => startEditingNote(note)}
-                        className="text-[var(--text-secondary)] hover:text-[var(--color-brand)] p-1"
-                      >
+                    <div className="flex gap-1">
+                      <button onClick={() => startEditingNote(note)} className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-main)] hover:text-[var(--color-brand)]" aria-label={`Edit ${note.title}`}>
                         <Edit size={18} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           if (window.confirm('Delete note?')) deleteNote(game.id, playthrough.id, note.id);
                         }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--color-danger-custom)] p-1"
+                        className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[var(--bg-main)] hover:text-[var(--color-danger-custom)]"
+                        aria-label={`Delete ${note.title}`}
                       >
                         <Trash2 size={18} />
                       </button>
                     </div>
                   </div>
-                  
+
                   {note.description && (
                     <div className="mb-4 text-[var(--text-primary)]">
                       <MarkdownRenderer content={note.description} />
@@ -329,17 +358,17 @@ export const PlaythroughDetail = () => {
                   )}
 
                   {note.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">
-                      {note.tags.map(t => (
-                        <span key={t} className="px-2 py-1 bg-[var(--bg-main)] text-xs text-[var(--text-secondary)] rounded border border-[var(--border-color)]">
-                          #{t}
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border-color)] pt-4">
+                      {note.tags.map((tag) => (
+                        <span key={tag} className="rounded-full border border-[var(--border-color)] bg-[var(--bg-main)] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                          #{tag}
                         </span>
                       ))}
                     </div>
                   )}
                 </>
               )}
-            </div>
+            </article>
           ))
         )}
       </div>

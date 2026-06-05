@@ -18,4 +18,49 @@
 body {
   background-color: var(--bg-main, #121212);
   color: var(--text-primary, #ffffff);
+  min-width: 320px;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  scrollbar-color: var(--bg-surface-hover) var(--bg-main);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  color: var(--text-primary);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+label,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.line-clamp-1,
+.line-clamp-2,
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-1 {
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  -webkit-line-clamp: 3;
 }

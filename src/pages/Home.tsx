@@ -1,27 +1,47 @@
-import React, { useState } from 'react';
-import { useJournal } from '../store/useJournalStore';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Calendar, Type, Gamepad2, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Edit, FileText, Gamepad2, Plus, Search, Trash2, Type } from 'lucide-react';
+import { useJournal } from '../store/useJournalStore';
+import type { Game } from '../interfaces/models';
+
+const emptyGameForm = { title: '', description: '', coverImageUrl: '' };
 
 export const Home = () => {
   const { games, addGame, updateGame, deleteGame } = useJournal();
   const [search, setSearch] = useState('');
   const [sortParam, setSortParam] = useState<'date' | 'name'>('date');
   const [isAdding, setIsAdding] = useState(false);
-  const [newGameForm, setNewGameForm] = useState({ title: '', description: '', coverImageUrl: '' });
+  const [newGameForm, setNewGameForm] = useState(emptyGameForm);
 
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
-  const [editGameForm, setEditGameForm] = useState({ title: '', description: '', coverImageUrl: '' });
+  const [editGameForm, setEditGameForm] = useState(emptyGameForm);
+
+  const totalPlaythroughs = games.reduce((acc, game) => acc + game.playthroughs.length, 0);
+  const totalNotes = games.reduce((acc, game) => acc + game.playthroughs.reduce((sum, play) => sum + play.notes.length, 0), 0);
+
+  const sortedGames = useMemo(() => {
+    const filteredGames = games.filter((game) => game.title.toLowerCase().includes(search.toLowerCase()));
+
+    return [...filteredGames].sort((a, b) => {
+      if (sortParam === 'name') {
+        return a.title.localeCompare(b.title);
+      }
+
+      const dateA = a.lastNoteDate ? new Date(a.lastNoteDate).getTime() : 0;
+      const dateB = b.lastNoteDate ? new Date(b.lastNoteDate).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [games, search, sortParam]);
 
   const handleAddGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGameForm.title.trim()) return;
     addGame(newGameForm);
-    setNewGameForm({ title: '', description: '', coverImageUrl: '' });
+    setNewGameForm(emptyGameForm);
     setIsAdding(false);
   };
 
-  const handleEditClick = (e: React.MouseEvent, game: any) => {
+  const handleEditClick = (e: React.MouseEvent, game: Game) => {
     e.preventDefault();
     e.stopPropagation();
     setEditingGameId(game.id);
@@ -43,126 +63,160 @@ export const Home = () => {
     }
   };
 
-  const filteredGames = games.filter(g => g.title.toLowerCase().includes(search.toLowerCase()));
-
-  const sortedGames = [...filteredGames].sort((a, b) => {
-    if (sortParam === 'name') {
-      return a.title.localeCompare(b.title);
-    }
-    const dateA = a.lastNoteDate ? new Date(a.lastNoteDate).getTime() : 0;
-    const dateB = b.lastNoteDate ? new Date(b.lastNoteDate).getTime() : 0;
-    return dateB - dateA;
-  });
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h2 className="text-3xl font-bold">Games</h2>
-        <div className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={18} />
-            <input 
-              type="text"
-              placeholder="Search games..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-[var(--color-brand)] transition"
-            />
+    <div className="space-y-8">
+      <section className="rounded-lg border border-[var(--border-color)] bg-[linear-gradient(135deg,_rgba(56,189,248,0.12),_rgba(52,211,153,0.06)_45%,_rgba(24,28,35,0.94))] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--color-brand)]">Library</p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Games</h2>
+            <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+              Track playthroughs, notes, tags and backups from one tidy local journal.
+            </p>
           </div>
-          <button 
-            onClick={() => setSortParam(s => s === 'date' ? 'name' : 'date')}
-            className="flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-color)] px-4 py-2 rounded-lg hover:border-[var(--color-brand)] transition"
+
+          <div className="grid grid-cols-3 gap-2 sm:min-w-80">
+            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/55 p-3">
+              <div className="text-xs text-[var(--text-secondary)]">Games</div>
+              <div className="mt-1 text-2xl font-bold">{games.length}</div>
+            </div>
+            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/55 p-3">
+              <div className="text-xs text-[var(--text-secondary)]">Plays</div>
+              <div className="mt-1 text-2xl font-bold">{totalPlaythroughs}</div>
+            </div>
+            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/55 p-3">
+              <div className="text-xs text-[var(--text-secondary)]">Notes</div>
+              <div className="mt-1 text-2xl font-bold">{totalNotes}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)]/80 p-3 md:flex-row md:items-center md:justify-between">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={18} />
+          <input
+            type="text"
+            placeholder="Search games..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] py-2.5 pl-10 pr-4 outline-none transition focus:border-[var(--color-brand)]"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSortParam((s) => s === 'date' ? 'name' : 'date')}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] px-4 py-2.5 transition hover:border-[var(--color-brand)] md:flex-none"
           >
             {sortParam === 'date' ? <Calendar size={18} /> : <Type size={18} />}
-            <span>{sortParam === 'date' ? 'By Last Updated' : 'By Name'}</span>
+            <span>{sortParam === 'date' ? 'Last Updated' : 'Name'}</span>
           </button>
-          <button 
+          <button
             onClick={() => setIsAdding(!isAdding)}
-            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white p-2 md:px-4 rounded-lg flex items-center gap-2 transition"
+            className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand)] px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)]"
           >
             <Plus size={18} />
-            <span className="hidden md:inline">Add Game</span>
+            <span className="hidden sm:inline">Add Game</span>
           </button>
         </div>
       </div>
 
       {isAdding && (
-        <form onSubmit={handleAddGame} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] flex flex-col gap-4">
-          <h3 className="text-xl font-semibold">New Game</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input 
-              type="text" placeholder="Title*" required
-              value={newGameForm.title} onChange={e => setNewGameForm({...newGameForm, title: e.target.value})}
-              className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)]"
+        <form onSubmit={handleAddGame} className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] p-4 shadow-xl shadow-black/10">
+          <h3 className="mb-4 text-xl font-semibold">New Game</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <input
+              type="text"
+              placeholder="Title*"
+              required
+              value={newGameForm.title}
+              onChange={(e) => setNewGameForm({ ...newGameForm, title: e.target.value })}
+              className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
             />
-            <input 
-              type="url" placeholder="Cover Image URL (optional)" 
-              value={newGameForm.coverImageUrl} onChange={e => setNewGameForm({...newGameForm, coverImageUrl: e.target.value})}
-              className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)]"
+            <input
+              type="url"
+              placeholder="Cover Image URL"
+              value={newGameForm.coverImageUrl}
+              onChange={(e) => setNewGameForm({ ...newGameForm, coverImageUrl: e.target.value })}
+              className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
             />
-            <textarea 
-              placeholder="Description (optional)"
-              value={newGameForm.description} onChange={e => setNewGameForm({...newGameForm, description: e.target.value})}
-              className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] md:col-span-2 h-20"
+            <textarea
+              placeholder="Description"
+              value={newGameForm.description}
+              onChange={(e) => setNewGameForm({ ...newGameForm, description: e.target.value })}
+              className="h-24 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)] md:col-span-2"
             />
           </div>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 rounded text-[var(--text-secondary)] hover:text-white">Cancel</button>
-            <button type="submit" className="bg-[var(--color-brand)] text-white px-4 py-2 rounded hover:opacity-90">Save</button>
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={() => setIsAdding(false)} className="rounded-lg px-4 py-2 text-[var(--text-secondary)] transition hover:text-white">Cancel</button>
+            <button type="submit" className="rounded-lg bg-[var(--color-brand)] px-4 py-2 font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)]">Save</button>
           </div>
         </form>
       )}
 
       {sortedGames.length === 0 ? (
-        <div className="text-center text-[var(--text-secondary)] py-12">No games found. Add some to get started!</div>
+        <div className="rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--bg-surface)]/50 py-16 text-center">
+          <Gamepad2 className="mx-auto mb-4 text-[var(--color-brand)]" size={44} />
+          <h3 className="text-xl font-semibold">{search ? 'No matching games' : 'Your journal is empty'}</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-[var(--text-secondary)]">
+            {search ? 'Try a different search term or clear the filter.' : 'Add your first game to start collecting playthroughs and notes.'}
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {sortedGames.map(game => (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {sortedGames.map((game) => (
             <div key={game.id} className="relative group">
               {editingGameId === game.id ? (
-                <form onSubmit={handleUpdateGame} className="bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--color-brand)] flex flex-col gap-4 shadow-lg my-0">
-                  <h3 className="text-xl font-semibold">Edit Game</h3>
-                  <input 
-                    type="text" placeholder="Title*" required
-                    value={editGameForm.title} onChange={e => setEditGameForm({...editGameForm, title: e.target.value})}
-                    className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)]"
+                <form onSubmit={handleUpdateGame} className="flex h-full flex-col gap-3 rounded-lg border border-[var(--color-brand)] bg-[var(--bg-surface)] p-4 shadow-lg">
+                  <h3 className="text-lg font-semibold">Edit Game</h3>
+                  <input
+                    type="text"
+                    placeholder="Title*"
+                    required
+                    value={editGameForm.title}
+                    onChange={(e) => setEditGameForm({ ...editGameForm, title: e.target.value })}
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
                   />
-                  <input 
-                    type="url" placeholder="Cover Image URL" 
-                    value={editGameForm.coverImageUrl} onChange={e => setEditGameForm({...editGameForm, coverImageUrl: e.target.value})}
-                    className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)]"
+                  <input
+                    type="url"
+                    placeholder="Cover Image URL"
+                    value={editGameForm.coverImageUrl}
+                    onChange={(e) => setEditGameForm({ ...editGameForm, coverImageUrl: e.target.value })}
+                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
                   />
-                  <textarea 
+                  <textarea
                     placeholder="Description"
-                    value={editGameForm.description} onChange={e => setEditGameForm({...editGameForm, description: e.target.value})}
-                    className="bg-[var(--bg-main)] border border-[var(--border-color)] p-2 rounded focus:outline-none focus:border-[var(--color-brand)] h-20"
+                    value={editGameForm.description}
+                    onChange={(e) => setEditGameForm({ ...editGameForm, description: e.target.value })}
+                    className="h-24 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
                   />
-                  <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setEditingGameId(null)} className="px-3 py-1.5 rounded text-[var(--text-secondary)] hover:text-white text-sm">Cancel</button>
-                    <button type="submit" className="bg-[var(--color-brand)] text-white px-3 py-1.5 rounded hover:opacity-90 text-sm">Update</button>
+                  <div className="mt-auto flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditingGameId(null)} className="rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:text-white">Cancel</button>
+                    <button type="submit" className="rounded-lg bg-[var(--color-brand)] px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-[var(--color-brand-hover)]">Update</button>
                   </div>
                 </form>
               ) : (
-                <Link to={`/game/${game.id}`} className="flex flex-col bg-[var(--bg-surface)] rounded-xl overflow-hidden border border-[var(--border-color)] hover:border-[var(--color-brand)] transition hover:shadow-lg h-full">
-                  <div className="relative">
+                <Link to={`/game/${game.id}`} className="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-xl hover:shadow-black/20">
+                  <div className="relative aspect-[16/11] overflow-hidden bg-[var(--bg-main)]">
                     {game.coverImageUrl ? (
-                      <img src={game.coverImageUrl} alt={game.title} className="w-full h-48 object-cover group-hover:scale-105 transition duration-300" />
+                      <img src={game.coverImageUrl} alt={game.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
                     ) : (
-                      <div className="w-full h-48 bg-[var(--border-color)] flex items-center justify-center">
-                        <Gamepad2 size={48} className="text-[var(--text-secondary)] opacity-50" />
+                      <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,_rgba(56,189,248,0.16),_rgba(52,211,153,0.08))]">
+                        <Gamepad2 size={48} className="text-[var(--color-brand)] opacity-80" />
                       </div>
                     )}
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                      <button onClick={(e) => handleEditClick(e, game)} className="bg-black/60 p-1.5 rounded text-white hover:text-[var(--color-brand)] transition"><Edit size={16}/></button>
-                      <button onClick={(e) => handleDeleteClick(e, game.id)} className="bg-black/60 p-1.5 rounded text-white hover:text-[var(--color-danger-custom)] transition"><Trash2 size={16}/></button>
+                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute right-2 top-2 flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                      <button onClick={(e) => handleEditClick(e, game)} className="rounded-lg border border-white/10 bg-black/65 p-1.5 text-white transition hover:text-[var(--color-brand)]" aria-label={`Edit ${game.title}`}><Edit size={16} /></button>
+                      <button onClick={(e) => handleDeleteClick(e, game.id)} className="rounded-lg border border-white/10 bg-black/65 p-1.5 text-white transition hover:text-[var(--color-danger-custom)]" aria-label={`Delete ${game.title}`}><Trash2 size={16} /></button>
                     </div>
                   </div>
-                  <div className="p-4 flex-1 flex flex-col z-10 bg-[var(--bg-surface)]">
-                    <h3 className="text-lg font-bold mb-1 line-clamp-1">{game.title}</h3>
-                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-4 flex-1">{game.description || 'No description'}</p>
-                    <div className="flex justify-between items-center text-xs text-[var(--text-secondary)]">
-                      <span>{game.playthroughs.length} Playthroughs</span>
-                      {game.lastNoteDate && <span>Updated {new Date(game.lastNoteDate).toLocaleDateString()}</span>}
+                  <div className="flex flex-1 flex-col p-4">
+                    <h3 className="mb-1 text-lg font-bold line-clamp-1">{game.title}</h3>
+                    <p className="mb-4 flex-1 text-sm leading-6 text-[var(--text-secondary)] line-clamp-3">{game.description || 'No description yet.'}</p>
+                    <div className="flex items-center justify-between gap-3 border-t border-[var(--border-color)] pt-3 text-xs text-[var(--text-secondary)]">
+                      <span className="inline-flex items-center gap-1.5"><FileText size={14} />{game.playthroughs.length} Plays</span>
+                      <span>{game.lastNoteDate ? new Date(game.lastNoteDate).toLocaleDateString() : 'No notes'}</span>
                     </div>
                   </div>
                 </Link>

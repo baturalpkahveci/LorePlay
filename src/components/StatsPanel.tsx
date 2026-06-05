@@ -12,33 +12,33 @@ export const StatsPanel = () => {
   }, 0);
 
   return (
-    <div className="flex bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border-color)] gap-6 items-center shadow-lg w-fit">
-      <div className="flex flex-col items-center">
-        <div className="flex items-center gap-2 text-[var(--color-brand)] mb-1">
-          <Gamepad2 size={20} />
-          <span className="font-semibold text-sm">Games</span>
+    <div className="hidden md:flex items-center gap-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)]/50 p-1">
+      <div className="flex items-center gap-2 rounded-md px-3 py-2">
+        <div className="text-[var(--color-brand)]">
+          <Gamepad2 size={16} />
         </div>
-        <span className="text-2xl font-bold text-[var(--text-primary)]">{totalGames}</span>
-      </div>
-      
-      <div className="w-px h-10 bg-[var(--border-color)]"></div>
-      
-      <div className="flex flex-col items-center">
-        <div className="flex items-center gap-2 text-[var(--color-success-custom)] mb-1">
-          <PlaySquare size={20} />
-          <span className="font-semibold text-sm">Plays</span>
-        </div>
-        <span className="text-2xl font-bold text-[var(--text-primary)]">{totalPlaythroughs}</span>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{totalGames}</span>
+        <span className="text-xs text-[var(--text-secondary)]">Games</span>
       </div>
 
-      <div className="w-px h-10 bg-[var(--border-color)]"></div>
-      
-      <div className="flex flex-col items-center">
-        <div className="flex items-center gap-2 text-[var(--color-warning-custom)] mb-1">
-          <FileText size={20} />
-          <span className="font-semibold text-sm">Notes</span>
+      <div className="h-6 w-px bg-[var(--border-color)]"></div>
+
+      <div className="flex items-center gap-2 rounded-md px-3 py-2">
+        <div className="text-[var(--color-success-custom)]">
+          <PlaySquare size={16} />
         </div>
-        <span className="text-2xl font-bold text-[var(--text-primary)]">{totalNotes}</span>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{totalPlaythroughs}</span>
+        <span className="text-xs text-[var(--text-secondary)]">Plays</span>
+      </div>
+
+      <div className="h-6 w-px bg-[var(--border-color)]"></div>
+
+      <div className="flex items-center gap-2 rounded-md px-3 py-2">
+        <div className="text-[var(--color-warning-custom)]">
+          <FileText size={16} />
+        </div>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{totalNotes}</span>
+        <span className="text-xs text-[var(--text-secondary)]">Notes</span>
       </div>
     </div>
   );

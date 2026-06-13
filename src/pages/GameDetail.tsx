@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock3, Edit, FileText, Flame, Gamepad2, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock3, Download, Edit, FileText, Flame, Gamepad2, Plus, Search, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { useJournal } from '../store/useJournalStore';
 import type { Playthrough, PlaythroughStatus } from '../interfaces/models';
+import { createBackupFilename } from '../services/backupFilename';
+import { parseGameData } from '../services/journalValidation';
 
 type PlaythroughSort = 'date' | 'name' | 'notes' | 'streak' | 'lastNote';
 type PlaythroughFilter = 'All' | PlaythroughStatus;
@@ -39,7 +41,7 @@ const getPlaythroughLastNoteDate = (playthrough: Playthrough) => {
 export const GameDetail = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const { games, addPlaythrough, updatePlaythrough, deletePlaythrough, deleteGame } = useJournal();
+  const { games, addPlaythrough, updatePlaythrough, deletePlaythrough, deleteGame, exportGameData, importGameData } = useJournal();
 
   const game = games.find((g) => g.id === gameId);
 
@@ -135,6 +137,61 @@ export const GameDetail = () => {
     }
   };
 
+  const handleExportGame = () => {
+    const data = exportGameData(game.id);
+    if (!data) return;
+
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = createBackupFilename(`game-${game.title}`);
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportGame = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      try {
+        const importedGame = parseGameData(JSON.parse(loadEvent.target?.result as string) as unknown);
+        const importedNotes = importedGame.playthroughs.reduce((total, playthrough) => total + playthrough.notes.length, 0);
+
+        const firstApproval = window.confirm(
+          `Import "${importedGame.title}" into "${game.title}"?\n\nThis backup contains ${importedGame.playthroughs.length} playthrough(s) and ${importedNotes} note(s).`
+        );
+        if (!firstApproval) return;
+
+        const secondApproval = window.confirm(
+          'The current game title, cover, description, playthroughs and notes will be replaced. LorePlay will download a safety backup of the current game first. Continue?'
+        );
+        if (!secondApproval) return;
+
+        const typedApproval = window.prompt('Final confirmation: type REPLACE to overwrite this game.');
+        if (typedApproval !== 'REPLACE') {
+          alert('Import cancelled. The game was not changed.');
+          return;
+        }
+
+        handleExportGame();
+        importGameData(game.id, importedGame);
+        alert('Game imported successfully. A pre-import safety backup was downloaded.');
+      } catch {
+        alert('Import failed. Select a valid LorePlay game backup. No data was changed.');
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.onerror = () => {
+      alert('The backup file could not be read. No data was changed.');
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   const getStatusColor = (s: PlaythroughStatus) => {
     switch (s) {
       case 'Playing':
@@ -181,9 +238,18 @@ export const GameDetail = () => {
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--color-brand)]">Game Detail</p>
                 <h2 className="text-3xl font-bold tracking-tight">{game.title}</h2>
               </div>
-              <button onClick={handleDeleteGame} className="rounded-lg border border-[var(--color-danger-custom)]/30 bg-[var(--color-danger-custom)]/10 p-2 text-[var(--color-danger-custom)] transition hover:bg-[var(--color-danger-custom)]/20" aria-label={`Delete ${game.title}`}>
-                <Trash2 size={20} />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button onClick={handleExportGame} className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2 text-[var(--text-secondary)] transition hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]" aria-label={`Export ${game.title}`} title="Export game backup">
+                  <Download size={19} />
+                </button>
+                <label className="cursor-pointer rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2 text-[var(--text-secondary)] transition hover:border-[var(--color-warning-custom)] hover:text-[var(--color-warning-custom)]" aria-label={`Import backup into ${game.title}`} title="Import game backup">
+                  <Upload size={19} />
+                  <input type="file" accept=".json,application/json" onChange={handleImportGame} className="hidden" />
+                </label>
+                <button onClick={handleDeleteGame} className="rounded-lg border border-[var(--color-danger-custom)]/30 bg-[var(--color-danger-custom)]/10 p-2 text-[var(--color-danger-custom)] transition hover:bg-[var(--color-danger-custom)]/20" aria-label={`Delete ${game.title}`} title="Delete game">
+                  <Trash2 size={19} />
+                </button>
+              </div>
             </div>
 
             <p className="max-w-3xl flex-1 text-sm leading-6 text-[var(--text-secondary)]">{game.description || 'No description provided.'}</p>

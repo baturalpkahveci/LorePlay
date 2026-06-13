@@ -5,6 +5,7 @@ import { StatsPanel } from './StatsPanel';
 import { useJournal } from '../store/useJournalStore';
 import { AuthControls } from './AuthControls';
 import { parseJournalData } from '../services/journalValidation';
+import { createBackupFilename } from '../services/backupFilename';
 
 export const Layout = () => {
   useAppColors();
@@ -16,7 +17,7 @@ export const Layout = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `game-journal-backup.json`;
+    a.download = createBackupFilename();
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -115,7 +116,7 @@ export const Layout = () => {
       <footer className="border-t border-[var(--border-color)] bg-[var(--bg-surface)]/70">
         <div className="max-w-6xl mx-auto flex flex-col gap-3 px-4 py-6 text-sm text-[var(--text-secondary)] sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <span className="font-semibold text-[var(--text-primary)]">Game Journal</span>
+            <span className="font-semibold text-[var(--text-primary)]">LorePlay</span>
             <span className="mx-2 text-[var(--border-color)]">/</span>
             Keep your saves, sessions and notes in one place.
           </div>

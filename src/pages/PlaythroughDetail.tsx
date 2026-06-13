@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Edit, FileText, Filter, Plus, Trash2, Upload } from 'lucide-react';
+import { createBackupFilename } from '../services/backupFilename';
 import { MarkdownHelpPanel } from '../components/MarkdownHelpPanel';
 import { ImageUploadButton } from '../components/ImageUploadButton';
 import { useJournal } from '../store/useJournalStore';
@@ -125,7 +126,7 @@ export const PlaythroughDetail = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `playthrough-${playthrough.title}.json`;
+    a.download = createBackupFilename(`playthrough-${playthrough.title}`);
     a.click();
     URL.revokeObjectURL(url);
   };

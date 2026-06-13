@@ -44,3 +44,4 @@ const gameSchema = z.object({
 export const journalSchema = z.array(gameSchema).max(5_000);
 
 export const parseJournalData = (value: unknown): Game[] => journalSchema.parse(value) as Game[];
+export const parseGameData = (value: unknown): Game => gameSchema.parse(value) as Game;

@@ -16,6 +16,8 @@ interface JournalState {
   addGame: (game: Omit<Game, 'id' | 'playthroughs'>) => void;
   updateGame: (id: string, game: Partial<Omit<Game, 'id' | 'playthroughs'>>) => void;
   deleteGame: (id: string) => void;
+  exportGameData: (gameId: string) => string;
+  importGameData: (gameId: string, game: Game) => void;
   addPlaythrough: (gameId: string, playthrough: Omit<Playthrough, 'id' | 'gameId' | 'notes' | 'longestStreak'>) => void;
   updatePlaythrough: (gameId: string, playthroughId: string, data: Partial<Omit<Playthrough, 'id' | 'gameId' | 'notes'>>) => void;
   deletePlaythrough: (gameId: string, playthroughId: string) => void;
@@ -153,6 +155,23 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
     setGames((previous) => previous.filter((game) => game.id !== id));
   };
 
+  const exportGameData = (gameId: string) => {
+    const game = games.find((item) => item.id === gameId);
+    return game ? JSON.stringify(game, null, 2) : '';
+  };
+
+  const importGameData = (gameId: string, importedGame: Game) => {
+    const normalizedGame: Game = {
+      ...importedGame,
+      id: gameId,
+      playthroughs: importedGame.playthroughs.map((playthrough) => ({
+        ...playthrough,
+        gameId,
+      })),
+    };
+    setGames((previous) => previous.map((game) => game.id === gameId ? normalizedGame : game));
+  };
+
   const addPlaythrough = (gameId: string, data: Omit<Playthrough, 'id' | 'gameId' | 'notes' | 'longestStreak'>) => {
     setGames((previous) => previous.map((game) => game.id === gameId ? {
       ...game,
@@ -244,6 +263,8 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
       addGame,
       updateGame,
       deleteGame,
+      exportGameData,
+      importGameData,
       addPlaythrough,
       updatePlaythrough,
       deletePlaythrough,

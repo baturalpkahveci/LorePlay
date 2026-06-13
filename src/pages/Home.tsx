@@ -102,7 +102,7 @@ export const Home = () => {
             <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--color-brand)]">Library</p>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Games</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-              Track playthroughs, notes, tags and backups from one tidy local journal.
+              Track playthroughs, notes, tags and backups from one simple place.
             </p>
           </div>
 

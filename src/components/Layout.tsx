@@ -54,8 +54,8 @@ export const Layout = () => {
               <Gamepad2 size={22} className="text-slate-950" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight text-white">Game Journal</h1>
-              <p className="text-xs text-[var(--text-secondary)]">Play notes, runs and memories</p>
+              <h1 className="text-lg font-bold tracking-tight text-white">LorePlay</h1>
+              <p className="text-xs text-[var(--text-secondary)]">Log your playthroughs, with style.</p>
             </div>
           </Link>
           

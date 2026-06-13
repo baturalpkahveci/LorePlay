@@ -3,8 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit, FileText, Trash2 } from 'lucide-react';
 import { MarkdownHelpPanel } from '../components/MarkdownHelpPanel';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
+import { ImageUploadButton } from '../components/ImageUploadButton';
 import { useJournal } from '../store/useJournalStore';
 import { appColors } from '../theme/appColors';
+
+const defaultNoteColor = appColors.noteColors[0] ?? '#38bdf8';
 
 export const NoteDetail = () => {
   const { gameId, playthroughId, noteId } = useParams();
@@ -20,7 +23,7 @@ export const NoteDetail = () => {
   const [title, setTitle] = useState(note?.title || '');
   const [description, setDescription] = useState(note?.description || '');
   const [coverImageUrl, setCoverImageUrl] = useState(note?.coverImageUrl || '');
-  const [color, setColor] = useState(note?.color || appColors.noteColors[0]);
+  const [color, setColor] = useState(note?.color || defaultNoteColor);
   const [tagsText, setTagsText] = useState(note?.tags.join(', ') || '');
 
   if (!game || !playthrough || !note) {
@@ -111,18 +114,24 @@ export const NoteDetail = () => {
                 onChange={(e) => setTitle(e.target.value)}
                 className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
               />
-              <input
-                type="url"
-                placeholder="Cover Image URL"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Cover Image URL"
+                  value={coverImageUrl}
+                  onChange={(e) => setCoverImageUrl(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
+                />
+                <ImageUploadButton compact onUploaded={setCoverImageUrl} />
+              </div>
             </div>
 
             <div>
               <div className="mb-2 text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</div>
               <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
+              <div className="mb-2 flex justify-end">
+                <ImageUploadButton onUploaded={(url) => setDescription((current) => `${current}${current ? '\n\n' : ''}![image](${url})`)} />
+              </div>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

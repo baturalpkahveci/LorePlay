@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, Clock3, Edit, FileText, Gamepad2, Plus, Search, Trash2, Type } from 'lucide-react';
 import { useJournal } from '../store/useJournalStore';
 import type { Game } from '../interfaces/models';
+import { ImageUploadButton } from '../components/ImageUploadButton';
 
 const emptyGameForm = { title: '', description: '', coverImageUrl: '' };
 
@@ -169,13 +170,16 @@ export const Home = () => {
               onChange={(e) => setNewGameForm({ ...newGameForm, title: e.target.value })}
               className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
             />
-            <input
-              type="url"
-              placeholder="Cover Image URL"
-              value={newGameForm.coverImageUrl}
-              onChange={(e) => setNewGameForm({ ...newGameForm, coverImageUrl: e.target.value })}
-              className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
-            />
+            <div className="flex gap-2">
+              <input
+                type="url"
+                placeholder="Cover Image URL"
+                value={newGameForm.coverImageUrl}
+                onChange={(e) => setNewGameForm({ ...newGameForm, coverImageUrl: e.target.value })}
+                className="min-w-0 flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
+              />
+              <ImageUploadButton compact onUploaded={(url) => setNewGameForm({ ...newGameForm, coverImageUrl: url })} />
+            </div>
             <textarea
               placeholder="Description"
               value={newGameForm.description}
@@ -213,13 +217,16 @@ export const Home = () => {
                     onChange={(e) => setEditGameForm({ ...editGameForm, title: e.target.value })}
                     className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
                   />
-                  <input
-                    type="url"
-                    placeholder="Cover Image URL"
-                    value={editGameForm.coverImageUrl}
-                    onChange={(e) => setEditGameForm({ ...editGameForm, coverImageUrl: e.target.value })}
-                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Cover Image URL"
+                      value={editGameForm.coverImageUrl}
+                      onChange={(e) => setEditGameForm({ ...editGameForm, coverImageUrl: e.target.value })}
+                      className="min-w-0 flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-2.5 outline-none transition focus:border-[var(--color-brand)]"
+                    />
+                    <ImageUploadButton compact onUploaded={(url) => setEditGameForm({ ...editGameForm, coverImageUrl: url })} />
+                  </div>
                   <textarea
                     placeholder="Description"
                     value={editGameForm.description}

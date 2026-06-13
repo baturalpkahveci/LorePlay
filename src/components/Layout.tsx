@@ -1,12 +1,14 @@
 import { Outlet, Link } from 'react-router-dom';
-import { Download, Gamepad2, Upload } from 'lucide-react';
+import { Cloud, CloudOff, Download, Gamepad2, HardDrive, LoaderCircle, Upload } from 'lucide-react';
 import { useAppColors } from '../theme/useAppColors';
 import { StatsPanel } from './StatsPanel';
 import { useJournal } from '../store/useJournalStore';
+import { AuthControls } from './AuthControls';
+import { parseJournalData } from '../services/journalValidation';
 
 export const Layout = () => {
   useAppColors();
-  const { exportAllData, importAllData } = useJournal();
+  const { exportAllData, importAllData, storageMode, syncState, syncError } = useJournal();
 
   const handleExportAll = () => {
     const data = exportAllData();
@@ -22,23 +24,37 @@ export const Layout = () => {
   const handleImportAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (!window.confirm("Warning: Importing will OVERWRITE all your current data. Are you sure you want to proceed?")) {
-      e.target.value = '';
-      return;
-    }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        if (ev.target?.result) {
-          importAllData(ev.target.result as string);
-          alert("All data imported successfully!");
+        const rawData = ev.target?.result as string;
+        const parsed = parseJournalData(JSON.parse(rawData) as unknown);
+
+        const firstApproval = window.confirm(
+          `Import will replace every game, playthrough and note in your ${storageMode === 'cloud' ? 'Neon cloud journal' : 'local guest journal'}.\n\nThe selected backup contains ${parsed.length} game(s). Continue?`
+        );
+        if (!firstApproval) return;
+
+        const secondApproval = window.confirm(
+          'This cannot be undone inside the app. LorePlay will download a safety backup of your current journal first, but the active data will still be overwritten. Continue to the final confirmation?'
+        );
+        if (!secondApproval) return;
+
+        const typedApproval = window.prompt('Final confirmation: type OVERWRITE to replace your current journal.');
+        if (typedApproval !== 'OVERWRITE') {
+          alert('Import cancelled. Your current data was not changed.');
+          return;
         }
-      } catch (err) {
-        alert("Failed to import. Please make sure the JSON file is valid.");
+
+        handleExportAll();
+        importAllData(rawData);
+        alert('Import completed. A pre-import safety backup was downloaded.');
+      } catch {
+        alert('Import failed. The file is not a valid LorePlay backup and no data was changed.');
+      } finally {
+        e.target.value = '';
       }
-      e.target.value = ''; // reset
     };
     reader.readAsText(file);
   };
@@ -62,6 +78,13 @@ export const Layout = () => {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <StatsPanel />
             <div className="w-px h-8 bg-[var(--border-color)] hidden md:block"></div>
+            <div
+              className="hidden items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] px-2.5 py-2 text-xs text-[var(--text-secondary)] xl:flex"
+              title={syncError || (storageMode === 'cloud' ? 'Stored in Neon' : 'Stored in this browser')}
+            >
+              {syncState === 'error' ? <CloudOff size={15} className="text-[var(--color-danger-custom)]" /> : storageMode === 'local' ? <HardDrive size={15} /> : syncState === 'saving' || syncState === 'loading' ? <LoaderCircle size={15} className="animate-spin text-[var(--color-brand)]" /> : <Cloud size={15} className="text-[var(--color-success-custom)]" />}
+              {syncState === 'error' ? 'Local fallback' : storageMode === 'local' ? 'Local' : syncState === 'saving' ? 'Saving' : syncState === 'loading' ? 'Loading' : 'Cloud'}
+            </div>
             <div className="flex gap-2">
               <button 
                 onClick={handleExportAll}
@@ -80,6 +103,7 @@ export const Layout = () => {
                 <input type="file" accept=".json" onChange={handleImportAll} className="hidden" />
               </label>
             </div>
+            <AuthControls />
           </div>
         </div>
       </header>

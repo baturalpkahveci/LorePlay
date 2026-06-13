@@ -2,11 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Edit, FileText, Filter, Plus, Trash2, Upload } from 'lucide-react';
 import { MarkdownHelpPanel } from '../components/MarkdownHelpPanel';
+import { ImageUploadButton } from '../components/ImageUploadButton';
 import { useJournal } from '../store/useJournalStore';
 import { appColors } from '../theme/appColors';
 import type { Note } from '../interfaces/models';
 
 type ImportedNote = Partial<Omit<Note, 'id'>>;
+const defaultNoteColor = appColors.noteColors[0] ?? '#38bdf8';
 
 export const PlaythroughDetail = () => {
   const { gameId, playthroughId } = useParams();
@@ -20,7 +22,7 @@ export const PlaythroughDetail = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [color, setColor] = useState(appColors.noteColors[0]);
+  const [color, setColor] = useState(defaultNoteColor);
   const [tagsText, setTagsText] = useState('');
 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export const PlaythroughDetail = () => {
     setTitle('');
     setDescription('');
     setCoverImageUrl('');
-    setColor(appColors.noteColors[0]);
+    setColor(defaultNoteColor);
     setTagsText('');
     setIsAdding(false);
   };
@@ -137,18 +139,29 @@ export const PlaythroughDetail = () => {
       try {
         const parsed = JSON.parse(ev.target?.result as string) as { notes?: ImportedNote[] };
         if (parsed.notes && Array.isArray(parsed.notes)) {
+          const firstApproval = window.confirm(
+            `This file contains ${parsed.notes.length} note(s). They will be added to "${playthrough.title}" and may create duplicates. Continue?`
+          );
+          if (!firstApproval) return;
+
+          const secondApproval = window.confirm(
+            'Imported notes are added individually and cannot be undone as one action. LorePlay will download a safety backup of this playthrough first. Import now?'
+          );
+          if (!secondApproval) return;
+
+          handleExport();
           parsed.notes.forEach((note) => {
             if (!note.title) return;
             addNote(game.id, playthrough.id, {
               title: note.title,
               description: note.description || '',
               coverImageUrl: note.coverImageUrl || '',
-              color: note.color || appColors.noteColors[0],
+              color: note.color || defaultNoteColor,
               tags: note.tags || [],
               date: note.date || new Date().toISOString()
             });
           });
-          alert('Notes imported successfully');
+          alert('Notes imported successfully. A pre-import safety backup was downloaded.');
         }
       } catch (err) {
         alert('Invalid JSON file');
@@ -260,19 +273,25 @@ export const PlaythroughDetail = () => {
             className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-lg font-semibold outline-none transition focus:border-[var(--color-brand)]"
           />
 
-          <input
-            type="url"
-            placeholder="Cover Image URL"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
-          />
+          <div className="flex gap-2">
+            <input
+              type="url"
+              placeholder="Cover Image URL"
+              value={coverImageUrl}
+              onChange={(e) => setCoverImageUrl(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
+            />
+            <ImageUploadButton compact onUploaded={setCoverImageUrl} />
+          </div>
 
           <div className="relative">
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
             </div>
             <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
+            <div className="mb-2 flex justify-end">
+              <ImageUploadButton onUploaded={(url) => setDescription((current) => `${current}${current ? '\n\n' : ''}![image](${url})`)} />
+            </div>
             <textarea
               placeholder="Your note..."
               value={description}
@@ -317,18 +336,24 @@ export const PlaythroughDetail = () => {
                     onChange={(e) => setEditTitle(e.target.value)}
                     className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 text-base font-semibold outline-none transition focus:border-[var(--color-brand)]"
                   />
-                  <input
-                    type="url"
-                    placeholder="Cover Image URL"
-                    value={editCoverImageUrl}
-                    onChange={(e) => setEditCoverImageUrl(e.target.value)}
-                    className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Cover Image URL"
+                      value={editCoverImageUrl}
+                      onChange={(e) => setEditCoverImageUrl(e.target.value)}
+                      className="min-w-0 flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-main)] p-3 outline-none transition focus:border-[var(--color-brand)]"
+                    />
+                    <ImageUploadButton compact onUploaded={setEditCoverImageUrl} />
+                  </div>
                   <div className="relative">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <span className="text-sm text-[var(--text-secondary)]">Description (Markdown Supported)</span>
                     </div>
                     <MarkdownHelpPanel isOpen={showMarkdownHelp} onToggle={() => setShowMarkdownHelp(!showMarkdownHelp)} />
+                    <div className="mb-2 flex justify-end">
+                      <ImageUploadButton onUploaded={(url) => setEditDescription((current) => `${current}${current ? '\n\n' : ''}![image](${url})`)} />
+                    </div>
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}

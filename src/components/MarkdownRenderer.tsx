@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 
 interface MarkdownRendererProps {
@@ -41,7 +42,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
     <div className="prose prose-invert max-w-none prose-img:rounded-lg prose-img:border prose-img:border-[var(--border-color)] prose-img:shadow-lg prose-img:shadow-black/20">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
         components={{
           a: ({ ...props }) => {
             const href = props.href || '';
@@ -57,7 +58,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
             let height: string | undefined;
 
             if (altParts && altParts.length > 1) {
-              const dims = altParts[1].split('x').map((part) => part.trim()).filter(Boolean);
+              const dimensionPart = altParts[1];
+              const dims = dimensionPart ? dimensionPart.split('x').map((part) => part.trim()).filter(Boolean) : [];
               width = dims[0];
               height = dims[1];
               props.alt = altParts[0];

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, LockKeyhole } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from '../components/BrandLogo';
 
 export const ResetPassword = () => {
   const { resetPassword } = useAuth();
@@ -42,7 +43,10 @@ export const ResetPassword = () => {
     <div className="mx-auto max-w-md py-8 sm:py-14">
       <div className="overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] shadow-2xl shadow-black/30">
         <div className="border-b border-[var(--border-color)] bg-[linear-gradient(135deg,_rgba(56,189,248,0.14),_rgba(52,211,153,0.05),_rgba(24,28,35,0.96))] p-6">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-brand)] text-slate-950"><KeyRound size={22} /></div>
+          <div className="mb-4 flex items-end gap-2">
+            <BrandLogo size="lg" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] text-[var(--color-brand)] shadow"><KeyRound size={15} /></span>
+          </div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-brand)]">LorePlay Account</p>
           <h1 className="mt-1 text-2xl font-bold">Choose a new password</h1>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Use at least 10 characters. Other active sessions will be signed out after the reset.</p>

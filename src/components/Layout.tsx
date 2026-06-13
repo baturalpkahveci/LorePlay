@@ -1,11 +1,12 @@
 import { Outlet, Link } from 'react-router-dom';
-import { Cloud, CloudOff, Download, Gamepad2, HardDrive, LoaderCircle, Upload } from 'lucide-react';
+import { Cloud, CloudOff, Download, HardDrive, LoaderCircle, Upload } from 'lucide-react';
 import { useAppColors } from '../theme/useAppColors';
 import { StatsPanel } from './StatsPanel';
 import { useJournal } from '../store/useJournalStore';
 import { AuthControls } from './AuthControls';
 import { parseJournalData } from '../services/journalValidation';
 import { createBackupFilename } from '../services/backupFilename';
+import { BrandLogo } from './BrandLogo';
 
 export const Layout = () => {
   useAppColors();
@@ -66,13 +67,11 @@ export const Layout = () => {
 
       <header className="sticky top-0 z-50 border-b border-[var(--border-color)] bg-[var(--bg-surface)]/90 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition">
-            <div className="bg-[var(--color-brand)] p-2 rounded-lg shadow-lg shadow-sky-500/20">
-              <Gamepad2 size={22} className="text-slate-950" />
-            </div>
+          <Link to="/" className="group flex items-center gap-2.5 transition hover:opacity-90" aria-label="LorePlay home">
+            <BrandLogo className="transition group-hover:border-sky-300/40 group-hover:shadow-sky-500/25" />
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold tracking-tight text-white">LorePlay</h1>
-              <p className="text-xs text-[var(--text-secondary)]">Log your playthroughs, with style.</p>
+              <p className="text-xs text-[var(--text-secondary)]">Some adventures are worth remembering.</p>
             </div>
           </Link>
           
@@ -115,10 +114,11 @@ export const Layout = () => {
 
       <footer className="border-t border-[var(--border-color)] bg-[var(--bg-surface)]/70">
         <div className="max-w-6xl mx-auto flex flex-col gap-3 px-4 py-6 text-sm text-[var(--text-secondary)] sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="flex items-center gap-2.5">
+            <BrandLogo size="sm" />
             <span className="font-semibold text-[var(--text-primary)]">LorePlay</span>
             <span className="mx-2 text-[var(--border-color)]">/</span>
-            Keep your saves, sessions and notes in one place.
+            <span>Keep your saves, sessions and notes in one place.</span>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             <span>Local-first data</span>

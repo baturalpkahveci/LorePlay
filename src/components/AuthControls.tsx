@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Cloud, Eye, EyeOff, KeyRound, LockKeyhole, LogIn, LogOut, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from './BrandLogo';
 
 type AuthMode = 'signIn' | 'signUp' | 'forgot';
 
@@ -119,8 +120,13 @@ export const AuthControls = () => {
           >
             <div className="relative border-b border-[var(--border-color)] bg-[linear-gradient(135deg,_rgba(56,189,248,0.14),_rgba(52,211,153,0.05),_rgba(24,28,35,0.96))] p-5 sm:p-6">
               <button type="button" onClick={() => setIsOpen(false)} className="absolute right-3 top-3 rounded-lg p-2 text-[var(--text-secondary)] transition hover:bg-black/20 hover:text-white" aria-label="Close"><X size={18} /></button>
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-brand)] text-slate-950 shadow-lg shadow-sky-500/20">
-                {isForgot ? <KeyRound size={22} /> : <UserRound size={22} />}
+              <div className="mb-4 flex items-end gap-2">
+                <BrandLogo size="lg" />
+                {isForgot && (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border-color)] bg-[var(--bg-main)] text-[var(--color-brand)] shadow">
+                    <KeyRound size={15} />
+                  </span>
+                )}
               </div>
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-brand)]">LorePlay Account</p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight">{isForgot ? 'Reset your password' : isSignUp ? 'Create your account' : 'Welcome back'}</h2>

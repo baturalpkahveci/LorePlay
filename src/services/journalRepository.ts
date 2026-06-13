@@ -1,4 +1,5 @@
 import type { Game } from '../interfaces/models';
+import { authenticatedFetch } from './apiClient';
 
 const LOCAL_STORAGE_KEY = 'game-journal-data';
 
@@ -25,16 +26,15 @@ const parseError = async (response: Response) => {
 };
 
 export const loadCloudGames = async (): Promise<Game[]> => {
-  const response = await fetch('/api/journal', { credentials: 'include' });
+  const response = await authenticatedFetch('/api/journal');
   if (!response.ok) throw new Error(await parseError(response));
   const body = await response.json() as { games: Game[] };
   return body.games;
 };
 
 export const saveCloudGames = async (games: Game[]): Promise<void> => {
-  const response = await fetch('/api/journal', {
+  const response = await authenticatedFetch('/api/journal', {
     method: 'PUT',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ games }),
   });

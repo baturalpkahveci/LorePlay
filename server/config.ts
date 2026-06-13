@@ -7,7 +7,8 @@ export const serverConfig = {
   port: Number(readOptional('PORT') || 3001),
   appOrigin,
   databaseUrl: readOptional('DATABASE_URL'),
-  authSecret: readOptional('BETTER_AUTH_SECRET'),
+  neonAuthUrl: readOptional('VITE_NEON_AUTH_URL'),
+  neonAuthJwksUrl: readOptional('NEON_AUTH_JWKS_URL'),
   cloudinary: {
     cloudName: readOptional('CLOUDINARY_CLOUD_NAME'),
     apiKey: readOptional('CLOUDINARY_API_KEY'),
@@ -28,11 +29,17 @@ export const isTrustedOrigin = (origin: string) => {
   }
 };
 
-export const hasDatabaseConfig = Boolean(
-  serverConfig.databaseUrl
-  && serverConfig.authSecret
-  && !serverConfig.authSecret.startsWith('replace-with-')
-);
+export const hasDatabaseConfig = Boolean(serverConfig.databaseUrl);
+
+export const hasNeonAuthConfig = (() => {
+  if (!serverConfig.neonAuthUrl) return false;
+  try {
+    const url = new URL(serverConfig.neonAuthUrl);
+    return url.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && url.hostname === 'localhost');
+  } catch {
+    return false;
+  }
+})();
 
 export const hasCloudinaryConfig = Boolean(
   serverConfig.cloudinary.cloudName

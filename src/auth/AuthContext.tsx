@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { authClient } from '../services/authClient';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { authClient, isNeonAuthConfigured } from '../services/authClient';
 
 interface AppCapabilities {
+  authConfigured: boolean;
   databaseConfigured: boolean;
   cloudinaryConfigured: boolean;
 }
@@ -19,24 +20,51 @@ interface AuthContextValue {
   capabilities: AppCapabilities;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (name: string, email: string, password: string) => Promise<string | null>;
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  resetPassword: (token: string, newPassword: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const session = authClient.useSession();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isPending, setIsPending] = useState(isNeonAuthConfigured);
   const [capabilities, setCapabilities] = useState<AppCapabilities>({
+    authConfigured: isNeonAuthConfigured,
     databaseConfigured: false,
     cloudinaryConfigured: false,
   });
+
+  const refreshSession = useCallback(async () => {
+    if (!isNeonAuthConfigured) {
+      setUser(null);
+      setIsPending(false);
+      return;
+    }
+
+    try {
+      const result = await authClient.getSession();
+      const sessionUser = result.data?.user;
+      setUser(sessionUser ? {
+        id: sessionUser.id,
+        name: sessionUser.name || sessionUser.email.split('@')[0] || 'User',
+        email: sessionUser.email,
+        image: sessionUser.image ?? null,
+      } : null);
+    } catch {
+      setUser(null);
+    } finally {
+      setIsPending(false);
+    }
+  }, []);
 
   useEffect(() => {
     const refreshCapabilities = () => {
       fetch('/api/status')
         .then((response) => response.ok ? response.json() : Promise.reject())
         .then((data: AppCapabilities) => setCapabilities(data))
-        .catch(() => setCapabilities({ databaseConfigured: false, cloudinaryConfigured: false }));
+        .catch(() => setCapabilities({ authConfigured: isNeonAuthConfigured, databaseConfigured: false, cloudinaryConfigured: false }));
     };
 
     refreshCapabilities();
@@ -49,32 +77,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    void refreshSession();
+    window.addEventListener('focus', refreshSession);
+    return () => window.removeEventListener('focus', refreshSession);
+  }, [refreshSession]);
+
+  const errorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
+
   const value = useMemo<AuthContextValue>(() => ({
-    user: session.data?.user ? {
-      id: session.data.user.id,
-      name: session.data.user.name,
-      email: session.data.user.email,
-      image: session.data.user.image ?? null,
-    } : null,
-    isPending: session.isPending,
+    user,
+    isPending,
     capabilities,
     signIn: async (email, password) => {
-      const result = await authClient.signIn.email({ email, password, rememberMe: true });
-      if (result.error) return result.error.message || 'Sign in failed.';
-      await session.refetch();
-      return null;
+      if (!isNeonAuthConfigured) return 'Neon Auth is not configured.';
+      try {
+        const result = await authClient.signIn.email({ email, password, rememberMe: true });
+        if (result.error) return result.error.message || 'Sign in failed.';
+        await refreshSession();
+        return null;
+      } catch (error) {
+        return errorMessage(error, 'Sign in failed.');
+      }
     },
     signUp: async (name, email, password) => {
-      const result = await authClient.signUp.email({ name, email, password });
-      if (result.error) return result.error.message || 'Account creation failed.';
-      await session.refetch();
-      return null;
+      if (!isNeonAuthConfigured) return 'Neon Auth is not configured.';
+      try {
+        const result = await authClient.signUp.email({ name, email, password });
+        if (result.error) return result.error.message || 'Account creation failed.';
+        await refreshSession();
+        return null;
+      } catch (error) {
+        return errorMessage(error, 'Account creation failed.');
+      }
+    },
+    requestPasswordReset: async (email) => {
+      if (!isNeonAuthConfigured) return 'Neon Auth is not configured.';
+      try {
+        const result = await authClient.requestPasswordReset({
+          email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        return result.error ? result.error.message || 'Password reset request failed.' : null;
+      } catch (error) {
+        return errorMessage(error, 'Password reset request failed.');
+      }
+    },
+    resetPassword: async (token, newPassword) => {
+      if (!isNeonAuthConfigured) return 'Neon Auth is not configured.';
+      try {
+        const result = await authClient.resetPassword({ token, newPassword });
+        return result.error ? result.error.message || 'Password reset failed.' : null;
+      } catch (error) {
+        return errorMessage(error, 'Password reset failed.');
+      }
     },
     signOut: async () => {
       await authClient.signOut();
-      await session.refetch();
+      setUser(null);
     },
-  }), [capabilities, session]);
+  }), [capabilities, isPending, refreshSession, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

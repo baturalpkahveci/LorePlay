@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { GameDetail } from './pages/GameDetail';
 import { NoteDetail } from './pages/NoteDetail';
+import { ResetPassword } from './pages/ResetPassword';
 
 import { PlaythroughDetail } from './pages/PlaythroughDetail';
 
@@ -20,6 +21,7 @@ function App() {
               <Route path="game/:gameId" element={<GameDetail />} />
               <Route path="game/:gameId/playthrough/:playthroughId" element={<PlaythroughDetail />} />
               <Route path="game/:gameId/playthrough/:playthroughId/note/:noteId" element={<NoteDetail />} />
+              <Route path="reset-password" element={<ResetPassword />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ImageUp, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { authenticatedFetch } from '../services/apiClient';
 
 interface ImageUploadButtonProps {
   onUploaded: (url: string) => void;
@@ -27,7 +28,7 @@ export const ImageUploadButton = ({ onUploaded, compact = false }: ImageUploadBu
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const response = await fetch('/api/uploads/image', { method: 'POST', credentials: 'include', body: formData });
+      const response = await authenticatedFetch('/api/uploads/image', { method: 'POST', body: formData });
       const body = await response.json() as { url?: string; error?: string };
       if (!response.ok || !body.url) throw new Error(body.error || 'Upload failed.');
       onUploaded(body.url);

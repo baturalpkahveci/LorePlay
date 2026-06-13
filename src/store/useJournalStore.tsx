@@ -60,9 +60,11 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
   const [storageMode, setStorageMode] = useState<StorageMode>('local');
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [cloudRetry, setCloudRetry] = useState(0);
   const hydratedRef = useRef(true);
   const cloudReadyRef = useRef(false);
   const saveTimerRef = useRef<number | undefined>(undefined);
+  const cloudRetryTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (isPending) return;
@@ -70,6 +72,7 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
     hydratedRef.current = false;
     window.clearTimeout(saveTimerRef.current);
+    window.clearTimeout(cloudRetryTimerRef.current);
 
     if (!user) {
       cloudReadyRef.current = false;
@@ -94,10 +97,12 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setStorageMode('local');
-        setGames(loadLocalGames());
+        setStorageMode('cloud');
         setSyncState('error');
         setSyncError(error instanceof Error ? error.message : 'Cloud journal could not be loaded.');
+        cloudRetryTimerRef.current = window.setTimeout(() => {
+          setCloudRetry((current) => current + 1);
+        }, 5_000);
       })
       .finally(() => {
         if (!cancelled) hydratedRef.current = true;
@@ -105,8 +110,9 @@ export const JournalProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(cloudRetryTimerRef.current);
     };
-  }, [isPending, user?.id]);
+  }, [cloudRetry, isPending, user?.id]);
 
   useEffect(() => {
     if (!hydratedRef.current || isPending) return;

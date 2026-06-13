@@ -83,7 +83,7 @@ export const Layout = () => {
               title={syncError || (storageMode === 'cloud' ? 'Stored in Neon' : 'Stored in this browser')}
             >
               {syncState === 'error' ? <CloudOff size={15} className="text-[var(--color-danger-custom)]" /> : storageMode === 'local' ? <HardDrive size={15} /> : syncState === 'saving' || syncState === 'loading' ? <LoaderCircle size={15} className="animate-spin text-[var(--color-brand)]" /> : <Cloud size={15} className="text-[var(--color-success-custom)]" />}
-              {syncState === 'error' ? 'Local fallback' : storageMode === 'local' ? 'Local' : syncState === 'saving' ? 'Saving' : syncState === 'loading' ? 'Loading' : 'Cloud'}
+              {syncState === 'error' ? 'Cloud error' : storageMode === 'local' ? 'Local' : syncState === 'saving' ? 'Saving' : syncState === 'loading' ? 'Loading' : 'Cloud'}
             </div>
             <div className="flex gap-2">
               <button 

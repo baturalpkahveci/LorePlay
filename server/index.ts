@@ -5,10 +5,9 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import multer from 'multer';
-import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
-import { auth } from './auth.js';
-import { hasCloudinaryConfig, hasDatabaseConfig, isTrustedOrigin, serverConfig } from './config.js';
+import { hasCloudinaryConfig, hasDatabaseConfig, hasNeonAuthConfig, isTrustedOrigin, serverConfig } from './config.js';
 import { ensureJournalSchema, pool } from './database.js';
+import { verifyNeonAccessToken } from './neonAuth.js';
 import { journalSchema } from '../src/services/journalValidation.js';
 
 const app = express();
@@ -21,7 +20,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", ...(hasNeonAuthConfig ? [new URL(serverConfig.neonAuthUrl!).origin] : [])],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
     },
@@ -29,43 +28,37 @@ app.use(helmet({
 }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }));
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 40, standardHeaders: 'draft-8', legacyHeaders: false });
-
-if (auth) {
-  app.all('/api/auth/*splat', authLimiter, toNodeHandler(auth));
-} else {
-  app.all('/api/auth/*splat', (_req, res) => {
-    res.status(503).json({ error: 'Authentication is not configured. Add Neon credentials to .env.' });
-  });
-}
-
 app.use(express.json({ limit: '8mb' }));
 
 app.get('/api/status', (_req, res) => {
   res.json({
+    authConfigured: hasNeonAuthConfig,
     databaseConfigured: hasDatabaseConfig,
     cloudinaryConfigured: hasCloudinaryConfig,
   });
 });
 
 const requireSession = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!auth) {
+  if (!hasNeonAuthConfig) {
     res.status(503).json({ error: 'Authentication is not configured.' });
     return;
   }
 
-  try {
-    const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
-    if (!session?.user) {
-      res.status(401).json({ error: 'Sign in is required.' });
-      return;
-    }
-
-    res.locals.user = session.user;
-    next();
-  } catch {
-    res.status(401).json({ error: 'Your session could not be verified.' });
+  const authorization = req.get('authorization');
+  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  if (!token) {
+    res.status(401).json({ error: 'Sign in is required.' });
+    return;
   }
+
+  const user = await verifyNeonAccessToken(token);
+  if (!user) {
+    res.status(401).json({ error: 'Your session could not be verified.' });
+    return;
+  }
+
+  res.locals.user = user;
+  next();
 };
 
 const requireSameOrigin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -184,6 +177,7 @@ ensureJournalSchema()
     app.listen(serverConfig.port, () => {
       console.log(`LorePlay API listening on http://127.0.0.1:${serverConfig.port}`);
       if (!hasDatabaseConfig) console.log('Neon is not configured; guest local mode remains available.');
+      if (!hasNeonAuthConfig) console.log('Neon Auth is not configured; sign in remains disabled.');
       if (!hasCloudinaryConfig) console.log('Cloudinary is not configured; image uploads remain disabled.');
     });
   })

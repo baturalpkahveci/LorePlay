@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "server", "vite.config.js"]
+  "include": ["src", "server", "netlify", "vite.config.js"]
 }

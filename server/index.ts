@@ -1,14 +1,13 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { v2 as cloudinary } from 'cloudinary';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import multer from 'multer';
 import { hasCloudinaryConfig, hasDatabaseConfig, hasNeonAuthConfig, isTrustedOrigin, serverConfig } from './config.js';
-import { ensureJournalSchema, pool } from './database.js';
 import { verifyNeonAccessToken } from './neonAuth.js';
-import { journalSchema } from '../src/services/journalValidation.js';
+import { ImageUploadError, ImageValidationError, imageService, maxImageSize } from './services/imageService.js';
+import { JournalValidationError, journalService } from './services/journalService.js';
 
 const app = express();
 
@@ -71,59 +70,40 @@ const requireSameOrigin = (req: express.Request, res: express.Response, next: ex
 };
 
 app.get('/api/journal', requireSession, async (_req, res) => {
-  if (!pool) {
+  if (!journalService) {
     res.status(503).json({ error: 'Database is not configured.' });
     return;
   }
 
-  const result = await pool.query('SELECT data, updated_at FROM journal_documents WHERE user_id = $1', [res.locals.user.id]);
-  res.json({ games: result.rows[0]?.data || [], updatedAt: result.rows[0]?.updated_at || null });
+  const journal = await journalService.getForUser(res.locals.user.id);
+  res.json(journal);
 });
 
 app.put('/api/journal', requireSameOrigin, requireSession, async (req, res) => {
-  if (!pool) {
+  if (!journalService) {
     res.status(503).json({ error: 'Database is not configured.' });
     return;
   }
 
-  const parsed = journalSchema.safeParse(req.body.games);
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Journal data is invalid.', details: parsed.error.flatten() });
-    return;
+  try {
+    await journalService.replaceForUser(res.locals.user.id, req.body.games);
+    res.status(204).end();
+  } catch (error) {
+    if (error instanceof JournalValidationError) {
+      res.status(400).json({ error: error.message, details: error.details });
+      return;
+    }
+    throw error;
   }
-
-  await pool.query(
-    `INSERT INTO journal_documents (user_id, data, updated_at)
-     VALUES ($1, $2::jsonb, NOW())
-     ON CONFLICT (user_id)
-     DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
-    [res.locals.user.id, JSON.stringify(parsed.data)]
-  );
-  res.status(204).end();
 });
 
-if (hasCloudinaryConfig) {
-  cloudinary.config({
-    cloud_name: serverConfig.cloudinary.cloudName!,
-    api_key: serverConfig.cloudinary.apiKey!,
-    api_secret: serverConfig.cloudinary.apiSecret!,
-    secure: true,
-  });
-}
-
-const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, callback) => {
-    const allowed = allowedImageTypes.has(file.mimetype);
-    if (allowed) callback(null, true);
-    else callback(new Error('Unsupported image type.'));
-  },
+  limits: { fileSize: maxImageSize, files: 1 },
 });
 
 app.post('/api/uploads/image', requireSameOrigin, requireSession, upload.single('image'), async (req, res) => {
-  if (!hasCloudinaryConfig) {
+  if (!imageService) {
     res.status(503).json({ error: 'Cloudinary is not configured.' });
     return;
   }
@@ -133,25 +113,23 @@ app.post('/api/uploads/image', requireSameOrigin, requireSession, upload.single(
   }
 
   try {
-    const result = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'image',
-          folder: `loreplay/${String(res.locals.user.id).replace(/[^a-zA-Z0-9_-]/g, '_')}`,
-          unique_filename: true,
-          overwrite: false,
-        },
-        (error, uploaded) => {
-          if (error || !uploaded) reject(error || new Error('Upload failed.'));
-          else resolve({ secure_url: uploaded.secure_url, public_id: uploaded.public_id });
-        }
-      );
-      stream.end(req.file?.buffer);
+    const uploaded = await imageService.upload({
+      buffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      userId: res.locals.user.id,
     });
-
-    res.status(201).json({ url: result.secure_url, publicId: result.public_id });
-  } catch {
-    res.status(502).json({ error: 'Cloudinary upload failed.' });
+    res.status(201).json(uploaded);
+  } catch (error) {
+    if (error instanceof ImageValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    if (error instanceof ImageUploadError) {
+      res.status(502).json({ error: error.message });
+      return;
+    }
+    throw error;
   }
 });
 
@@ -160,10 +138,7 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
     res.status(400).json({ error: error.code === 'LIMIT_FILE_SIZE' ? 'Image must be 8 MB or smaller.' : error.message });
     return;
   }
-  if (error instanceof Error) {
-    res.status(400).json({ error: error.message });
-    return;
-  }
+  console.error('Unexpected API error.', error);
   res.status(500).json({ error: 'Unexpected server error.' });
 });
 
@@ -172,7 +147,7 @@ const distDir = path.resolve(currentDir, '..', 'dist');
 app.use(express.static(distDir));
 app.get('/{*splat}', (_req, res) => res.sendFile(path.join(distDir, 'index.html')));
 
-ensureJournalSchema()
+(journalService?.initialize() ?? Promise.resolve())
   .then(() => {
     app.listen(serverConfig.port, () => {
       console.log(`LorePlay API listening on http://127.0.0.1:${serverConfig.port}`);
